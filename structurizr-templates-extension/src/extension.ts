@@ -1,8 +1,19 @@
 import * as vscode from "vscode";
 import * as path from "path"
+import * as fs from "fs"
 
 import * as scriptFinder from "./scriptFinder";
 import * as pattern from "./pattern"
+
+
+async function openFileInNewTab(filePath: string): Promise<void> {
+    if (!fs.existsSync(filePath)) {
+		throw Error(`The file ${filePath} does not exist.`)
+    }
+
+	const openedDocument = await vscode.workspace.openTextDocument(filePath);
+	await vscode.window.showTextDocument(openedDocument, vscode.ViewColumn.One);
+}
 
 
 class CodelensProvider implements vscode.CodeLensProvider {
@@ -39,14 +50,14 @@ class CodelensProvider implements vscode.CodeLensProvider {
 				}
 
 				if (range) {
-					const codeLensCommand: vscode.Command = {
-						title: "Script Usage",
-						tooltip: "Script Usage (tooltip)",
-						command: "structurizr-templates.codelensAction",
-						arguments: [scriptInfo],
+					const fullScriptPath = path.join(workspaceDirectory, scriptInfo.path);
+					const goToDefinitionCommand: vscode.Command = {
+						title: "Go to pattern definition",
+						command: "structurizr-templates.showScriptDefinition",
+						arguments: [fullScriptPath],
 					}
 
-					this.codeLenses.push(new vscode.CodeLens(range, codeLensCommand));
+					this.codeLenses.push(new vscode.CodeLens(range, goToDefinitionCommand));
 				}
 			} catch (e) {
 				console.log("Got error: ", e);
@@ -60,7 +71,7 @@ class CodelensProvider implements vscode.CodeLensProvider {
 	}
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 	console.log("Activate ...");
 
 	console.log("Register CodeLens provider...");
@@ -79,6 +90,11 @@ export function activate(context: vscode.ExtensionContext) {
 	vscode.commands.registerCommand("structurizr-templates.codelensAction", (scriptInfo: scriptFinder.ScriptInfo) => {
 		console.log("Script Info: ", scriptInfo);
 	});
+
+	vscode.commands.registerCommand(
+		"structurizr-templates.showScriptDefinition",
+		(scriptPath: string) => openFileInNewTab(scriptPath),
+	);
 
 	console.log("Register commands ... [ok]")
 
