@@ -1,5 +1,8 @@
 import * as vscode from "vscode";
+import * as path from "path"
+
 import * as scriptFinder from "./scriptFinder";
+import * as pattern from "./pattern"
 
 
 class CodelensProvider implements vscode.CodeLensProvider {
@@ -28,18 +31,24 @@ class CodelensProvider implements vscode.CodeLensProvider {
 				const startPos = document.positionAt(matches.index);
 				const endPos = document.positionAt(matches.index + matches[0].length);
 				const range = new vscode.Range(startPos, endPos);
+				const scriptInfo = scriptFinder.ParseScriptInfo(matches[0]);
+				const workspaceDirectory = path.dirname(document.fileName);
+
+				if (!pattern.IsPatternScript(workspaceDirectory, scriptInfo)) {
+					continue;
+				}
 
 				if (range) {
 					const codeLensCommand: vscode.Command = {
 						title: "Script Usage",
 						tooltip: "Script Usage (tooltip)",
 						command: "structurizr-templates.codelensAction",
-						arguments: [scriptFinder.ParseScriptInfo(matches[0])],
+						arguments: [scriptInfo],
 					}
 
 					this.codeLenses.push(new vscode.CodeLens(range, codeLensCommand));
 				}
-			} catch(e) {
+			} catch (e) {
 				console.log("Got error: ", e);
 			}
 		}
