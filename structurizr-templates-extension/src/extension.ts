@@ -110,6 +110,85 @@ class HoverProvider implements vscode.HoverProvider {
 }
 
 
+
+function createRequiredArgumentError(
+	document: vscode.TextDocument,
+	scriptUsage: ScriptUsageContext,
+	extraArgument: string,
+): vscode.Diagnostic {
+	const scriptText = document.getText(scriptUsage.range);
+	const scriptOffset = document.offsetAt(scriptUsage.range.start);
+
+	const startIndex = scriptText.indexOf(extraArgument);
+	const endIndex = startIndex + extraArgument.length;
+	
+	const startPosition = document.positionAt(scriptOffset + startIndex);
+	const endPosition = document.positionAt(scriptOffset + endIndex);
+
+	return {
+		message: `Extra argument '${extraArgument}'`,
+		range: new vscode.Range(startPosition, endPosition),
+		severity: vscode.DiagnosticSeverity.Error,
+	};
+}
+
+
+function createMissingParameterError(
+	document: vscode.TextDocument,
+	scriptUsage: ScriptUsageContext,
+	missingParameter: string,
+): vscode.Diagnostic {
+	const scriptOffset = document.offsetAt(scriptUsage.range.start);
+	const scriptText = document.getText(scriptUsage.range);
+
+	const startHeaderPosition = document.positionAt(scriptOffset);
+	const endHeaderPosition = document.positionAt(scriptOffset + scriptText.indexOf(" "));
+
+	const headerRange = new vscode.Range(startHeaderPosition, endHeaderPosition);
+
+	return {
+		message: `Parameter '${missingParameter}' is required`,
+		range: headerRange,
+		severity: vscode.DiagnosticSeverity.Error,
+	};
+}
+
+
+function checkArgumentsSet(
+	document: vscode.TextDocument,
+	scriptUsages: ScriptUsageContext[],
+): vscode.Diagnostic[] {
+	const diagnostics: vscode.Diagnostic[] = [];
+
+	for (const scriptUsage of scriptUsages) {
+		const args = scriptUsage.patternInfo.args ?? [];
+		const params = scriptUsage.patternInfo.params ?? [];
+
+		const extraArgs = args.filter(arg => !params.includes(arg));
+		const missingParams = params.filter(param => !args.includes(param));
+
+		for (const extraArg of extraArgs) {
+			diagnostics.push(createRequiredArgumentError(document, scriptUsage, extraArg));
+		}
+
+		for (const missingParam of missingParams) {
+			diagnostics.push(createMissingParameterError(document, scriptUsage, missingParam));
+		}
+	}
+
+	return diagnostics;
+}
+
+
+function updateDiagnostics(document: vscode.TextDocument, collection: vscode.DiagnosticCollection): void {
+	const scriptUsages = getScriptUsages(document);
+	const argumentsCheckDiagnostics = checkArgumentsSet(document, scriptUsages);
+
+	collection.clear();
+	collection.set(document.uri, argumentsCheckDiagnostics);
+}
+
+
 export async function activate(context: vscode.ExtensionContext) {
 	console.log("Activate ...");
 
@@ -145,6 +224,22 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	console.log("Register commands ... [ok]")
+
+	console.log("Register diagnostics ...");
+
+	const collection = vscode.languages.createDiagnosticCollection("structurizr-templates.diagnostics");
+
+	if (vscode.window.activeTextEditor) {
+		updateDiagnostics(vscode.window.activeTextEditor.document, collection);
+	}
+
+	context.subscriptions.push(
+		vscode.workspace.onDidSaveTextDocument(document => {
+			updateDiagnostics(document, collection);
+		})
+	);
+
+	console.log("Register diagnostics ... [ok]");
 
 	console.log("Activate ... [ok]");
 }

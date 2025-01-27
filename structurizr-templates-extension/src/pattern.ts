@@ -6,6 +6,8 @@ import * as scriptFinder from "./scriptFinder"
 export interface PatternInfo {
     scriptPath: string;
     docs: string;
+    params?: string[];
+    args?: string[];
 };
 
 
@@ -40,5 +42,7 @@ export function GetPatternInfo(workspaceDirectory: string, scriptInfo: scriptFin
     return {
         scriptPath: fullScriptPath,
         docs: infoJsonData["doc"],
+        params: infoJsonData["params"],
+        args: scriptInfo.arguments.map(arg => arg.name),
     };
 }
