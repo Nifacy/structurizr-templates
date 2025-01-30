@@ -111,6 +111,47 @@ class HoverProvider implements vscode.HoverProvider {
 }
 
 
+class CompletionProvider implements vscode.CompletionItemProvider {
+	provideCompletionItems(
+		document: vscode.TextDocument,
+		position: vscode.Position,
+		token: vscode.CancellationToken,
+		context: vscode.CompletionContext,
+	): vscode.ProviderResult<vscode.CompletionItem[]> {
+		console.log("Completion Provider called");
+
+		for (const applyRange of scriptParser.GetScriptApplyRanges(document)) {
+			if (!applyRange.contains(position)) {
+				continue;
+			}
+
+			const info = getPatternApply(document, applyRange);
+			if (info === undefined) {
+				continue;
+			}
+
+			if (info.scriptApplyInfo.unfinishedArgumet !== undefined) {
+				const arg = info.scriptApplyInfo.unfinishedArgumet;
+
+				const args = (info.scriptApplyInfo.arguments ?? []).map(arg => arg.name);
+				const params = info.patternInfo.params ?? [];
+				const missingParams = params.filter(param => !args.includes(param));
+				const suggestedParams = missingParams.filter(param => param.startsWith(arg));
+
+				return suggestedParams.map(
+					param => new vscode.CompletionItem(
+						param,
+						vscode.CompletionItemKind.Issue,
+					)
+				);
+			}
+		}
+
+		return undefined;
+	}
+}
+
+
 function createRequiredArgumentError(
 	document: vscode.TextDocument,
 	patternApplyInfo: PatternApplyInfo,
@@ -254,6 +295,17 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	console.log("Register diagnostics ... [ok]");
+
+	console.log("Register completion provider ...");
+
+	context.subscriptions.push(
+		vscode.languages.registerCompletionItemProvider(
+			"*",
+			new CompletionProvider(),
+		)
+	);
+
+	console.log("Register completion provider ... [ok]");
 
 	console.log("Activate ... [ok]");
 }
