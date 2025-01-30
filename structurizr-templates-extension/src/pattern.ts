@@ -1,21 +1,19 @@
 import * as fs from "fs"
 import * as path from "path"
-import * as scriptFinder from "./scriptFinder"
 
 
 export interface PatternInfo {
     scriptPath: string;
     docs: string;
     params?: string[];
-    args?: string[];
 };
 
 
-export function IsPatternScript(workspaceDirectory: string, scriptInfo: scriptFinder.ScriptInfo) {
-    const fullScriptPath = path.join(workspaceDirectory, scriptInfo.path)
+export function IsPattern(workspaceFilePath: string, scriptPath: string) {
+    const workspaceDirectory = path.dirname(workspaceFilePath);
+    const fullScriptPath = path.join(workspaceDirectory, scriptPath);
 
     if (!fs.existsSync(fullScriptPath)) {
-        console.log(`'${fullScriptPath}' doesn't exist`);
         return false;
     }
 
@@ -23,7 +21,6 @@ export function IsPatternScript(workspaceDirectory: string, scriptInfo: scriptFi
     const infoFilePath = path.join(parentDir, "info.json");
 
     if (!fs.existsSync(infoFilePath)) {
-        console.log(`'${infoFilePath}' doesn't exist`);
         return false;
     }
 
@@ -31,8 +28,9 @@ export function IsPatternScript(workspaceDirectory: string, scriptInfo: scriptFi
 }
 
 
-export function GetPatternInfo(workspaceDirectory: string, scriptInfo: scriptFinder.ScriptInfo): PatternInfo {
-    const fullScriptPath = path.join(workspaceDirectory, scriptInfo.path);
+export function GetPatternInfo(workspaceFilePath: string, scriptPath: string): PatternInfo {
+    const workspaceDirectory = path.dirname(workspaceFilePath);
+    const fullScriptPath = path.join(workspaceDirectory, scriptPath);
     const parentDir = path.dirname(fullScriptPath);
     const infoFilePath = path.join(parentDir, "info.json");
 
@@ -43,6 +41,5 @@ export function GetPatternInfo(workspaceDirectory: string, scriptInfo: scriptFin
         scriptPath: fullScriptPath,
         docs: infoJsonData["doc"],
         params: infoJsonData["params"],
-        args: scriptInfo.arguments.map(arg => arg.name),
     };
 }

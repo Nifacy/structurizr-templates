@@ -1,57 +1,41 @@
 import * as vscode from "vscode";
-import * as path from "path"
 import * as fs from "fs"
 
-import * as scriptFinder from "./scriptFinder";
+import * as scriptParser from "./parser";
 import * as pattern from "./pattern"
 
 
-interface ScriptUsageContext {
-	patternInfo: pattern.PatternInfo;
+interface PatternApplyInfo {
 	range: vscode.Range;
-}
+	scriptApplyInfo: scriptParser.ScriptApplyInfo;
+	patternInfo: pattern.PatternInfo;
+};
 
 
 async function openFileInNewTab(filePath: string): Promise<void> {
-    if (!fs.existsSync(filePath)) {
+	if (!fs.existsSync(filePath)) {
 		throw Error(`The file ${filePath} does not exist.`)
-    }
+	}
 
 	const openedDocument = await vscode.workspace.openTextDocument(filePath);
 	await vscode.window.showTextDocument(openedDocument, vscode.ViewColumn.One);
 }
 
 
-const scriptUsageExp: RegExp = /(!script\s+(?:["']([^"'\n]+)["']|\S+)(?:\s*\{[\s\S]*?\})?)/g;
+function getPatternApply(document: vscode.TextDocument, applyRange: vscode.Range): PatternApplyInfo | undefined {
+	const workspaceFilePath = document.fileName;
+	const rawScriptApplyText = document.getText(applyRange);
+	const scriptApplyInfo = scriptParser.ParseScriptApplyInfo(rawScriptApplyText);
 
-
-function getScriptUsages(document: vscode.TextDocument): ScriptUsageContext[] {
-	const regex = new RegExp(scriptUsageExp);
-	const text = document.getText();
-	let matches;
-
-	const scriptUsages: ScriptUsageContext[] = [];
-
-	while ((matches = regex.exec(text)) !== null) {
-		const startPos = document.positionAt(matches.index);
-		const endPos = document.positionAt(matches.index + matches[0].length);
-		const range = new vscode.Range(startPos, endPos);
-
-		const workspaceDirectory = path.dirname(document.fileName);
-		const scriptInfo = scriptFinder.ParseScriptInfo(matches[0]);
-
-		if (!pattern.IsPatternScript(workspaceDirectory, scriptInfo)) {
-			continue;
-		}
-
-		if (range) {
-			scriptUsages.push({
-				patternInfo: pattern.GetPatternInfo(workspaceDirectory, scriptInfo),
-				range: range,
-			});
-		}
+	if (!pattern.IsPattern(workspaceFilePath, scriptApplyInfo.path)) {
+		return undefined;
 	}
-	return scriptUsages;
+
+	return {
+		range: applyRange,
+		scriptApplyInfo: scriptApplyInfo,
+		patternInfo: pattern.GetPatternInfo(workspaceFilePath, scriptApplyInfo.path),
+	};
 }
 
 
@@ -70,18 +54,23 @@ class CodelensProvider implements vscode.CodeLensProvider {
 	public provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
 		this.codeLenses = [];
 
-		try {
-			for (const scriptUsageContext of getScriptUsages(document)) {
+		for (const applyRange of scriptParser.GetScriptApplyRanges(document)) {
+			try {
+				const info = getPatternApply(document, applyRange);
+				if (info === undefined) {
+					continue;
+				}
+
 				const goToDefinitionCommand: vscode.Command = {
 					title: "Go to pattern definition",
 					command: "structurizr-templates.showScriptDefinition",
-					arguments: [scriptUsageContext.patternInfo.scriptPath],
-				}
-	
-				this.codeLenses.push(new vscode.CodeLens(scriptUsageContext.range, goToDefinitionCommand));
+					arguments: [info.patternInfo.scriptPath],
+				};
+
+				this.codeLenses.push(new vscode.CodeLens(info.range, goToDefinitionCommand));
+			} catch (e) {
+				console.log("Got error: ", e);
 			}
-		} catch (e) {
-			console.log("Got error: ", e);
 		}
 
 		return this.codeLenses;
@@ -99,29 +88,40 @@ class HoverProvider implements vscode.HoverProvider {
 		position: vscode.Position,
 		token: vscode.CancellationToken
 	): vscode.ProviderResult<vscode.Hover> {
-		for (const scriptUsageContext of getScriptUsages(document)) {
-			if (scriptUsageContext.range.contains(position)) {
-				const markdownContent = new vscode.MarkdownString(scriptUsageContext.patternInfo.docs);
-				return new vscode.Hover(markdownContent, scriptUsageContext.range);
+		for (const applyRange of scriptParser.GetScriptApplyRanges(document)) {
+			if (!applyRange.contains(position)) {
+				continue;
+			}
+
+			try {
+				const info = getPatternApply(document, applyRange);
+				if (info?.patternInfo.docs === undefined) {
+					continue;
+				}
+
+				const markdownContent = new vscode.MarkdownString(info.patternInfo.docs);
+				return new vscode.Hover(markdownContent, info.range);
+			} catch (e) {
+				console.log(`Got error: ${e}`);
 			}
 		}
+
 		return undefined;
 	}
 }
 
 
-
 function createRequiredArgumentError(
 	document: vscode.TextDocument,
-	scriptUsage: ScriptUsageContext,
+	patternApplyInfo: PatternApplyInfo,
 	extraArgument: string,
 ): vscode.Diagnostic {
-	const scriptText = document.getText(scriptUsage.range);
-	const scriptOffset = document.offsetAt(scriptUsage.range.start);
+	const scriptText = document.getText(patternApplyInfo.range);
+	const scriptOffset = document.offsetAt(patternApplyInfo.range.start);
 
 	const startIndex = scriptText.indexOf(extraArgument);
 	const endIndex = startIndex + extraArgument.length;
-	
+
 	const startPosition = document.positionAt(scriptOffset + startIndex);
 	const endPosition = document.positionAt(scriptOffset + endIndex);
 
@@ -135,11 +135,11 @@ function createRequiredArgumentError(
 
 function createMissingParameterError(
 	document: vscode.TextDocument,
-	scriptUsage: ScriptUsageContext,
+	patternApplyInfo: PatternApplyInfo,
 	missingParameter: string,
 ): vscode.Diagnostic {
-	const scriptOffset = document.offsetAt(scriptUsage.range.start);
-	const scriptText = document.getText(scriptUsage.range);
+	const scriptOffset = document.offsetAt(patternApplyInfo.range.start);
+	const scriptText = document.getText(patternApplyInfo.range);
 
 	const startHeaderPosition = document.positionAt(scriptOffset);
 	const endHeaderPosition = document.positionAt(scriptOffset + scriptText.indexOf(" "));
@@ -156,24 +156,28 @@ function createMissingParameterError(
 
 function checkArgumentsSet(
 	document: vscode.TextDocument,
-	scriptUsages: ScriptUsageContext[],
+	patternApplyInfo: PatternApplyInfo,
 ): vscode.Diagnostic[] {
 	const diagnostics: vscode.Diagnostic[] = [];
 
-	for (const scriptUsage of scriptUsages) {
-		const args = scriptUsage.patternInfo.args ?? [];
-		const params = scriptUsage.patternInfo.params ?? [];
+	console.log(`Script: ${patternApplyInfo.patternInfo.scriptPath}`);
+	for (const arg of patternApplyInfo.scriptApplyInfo.arguments) {
+		console.log(`- ${arg.name}`);
+	}
 
-		const extraArgs = args.filter(arg => !params.includes(arg));
-		const missingParams = params.filter(param => !args.includes(param));
+	const args = patternApplyInfo.scriptApplyInfo.arguments ?? [];
+	const argNames = args.map(arg => arg.name);
+	const params = patternApplyInfo.patternInfo.params ?? [];
 
-		for (const extraArg of extraArgs) {
-			diagnostics.push(createRequiredArgumentError(document, scriptUsage, extraArg));
-		}
+	const extraArgs = argNames.filter(arg => !params.includes(arg));
+	const missingParams = params.filter(param => !argNames.includes(param));
 
-		for (const missingParam of missingParams) {
-			diagnostics.push(createMissingParameterError(document, scriptUsage, missingParam));
-		}
+	for (const extraArg of extraArgs) {
+		diagnostics.push(createRequiredArgumentError(document, patternApplyInfo, extraArg));
+	}
+
+	for (const missingParam of missingParams) {
+		diagnostics.push(createMissingParameterError(document, patternApplyInfo, missingParam));
 	}
 
 	return diagnostics;
@@ -181,8 +185,22 @@ function checkArgumentsSet(
 
 
 function updateDiagnostics(document: vscode.TextDocument, collection: vscode.DiagnosticCollection): void {
-	const scriptUsages = getScriptUsages(document);
-	const argumentsCheckDiagnostics = checkArgumentsSet(document, scriptUsages);
+	const argumentsCheckDiagnostics: vscode.Diagnostic[] = [];
+
+	for (const applyRange of scriptParser.GetScriptApplyRanges(document)) {
+		try {
+			const info = getPatternApply(document, applyRange);
+			if (info === undefined) {
+				continue;
+			}
+
+			for (const diagnostic of checkArgumentsSet(document, info)) {
+				argumentsCheckDiagnostics.push(diagnostic);
+			}
+		} catch (e) {
+			console.error(`Got error: ${e}`);
+		}
+	}
 
 	collection.clear();
 	collection.set(document.uri, argumentsCheckDiagnostics);
@@ -213,10 +231,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log("Register Hover provider ... [ok]");
 
 	console.log("Register commands ...");
-
-	vscode.commands.registerCommand("structurizr-templates.codelensAction", (scriptInfo: scriptFinder.ScriptInfo) => {
-		console.log("Script Info: ", scriptInfo);
-	});
 
 	vscode.commands.registerCommand(
 		"structurizr-templates.showScriptDefinition",
