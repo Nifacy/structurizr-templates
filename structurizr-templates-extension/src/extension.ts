@@ -39,6 +39,60 @@ function getPatternApply(document: vscode.TextDocument, applyRange: vscode.Range
 }
 
 
+function getDefinedIndexes(name: string, argNames: scriptParser.ArgumentName[]): number[] {
+	const definedIndexes: number[] = [];
+
+	for (const argName of argNames) {
+        if (typeof argName === "string") {
+            continue;
+        }
+
+        if (argName.array === name) {
+            if (!definedIndexes.includes(argName.index)) {
+				definedIndexes.push(argName.index);
+			}
+        }
+    }
+
+    return definedIndexes;
+}
+
+
+function unpackParams(
+	params: pattern.PatternParameter[],
+	args: scriptParser.ArgumentName[]
+): scriptParser.ArgumentName[] {
+	const requiredArgs: scriptParser.ArgumentName[] = [];
+
+	for (const param of params) {
+		if (typeof param === "string") {
+			requiredArgs.push(param);
+			continue;
+		}
+	
+		for (const index of getDefinedIndexes(param.name, args)) {
+			for (const field of param.elementFields) {
+				requiredArgs.push({
+					array: param.name,
+					index: index,
+					field: field,
+				});
+			}
+		}	
+	}
+
+	return requiredArgs;
+}
+
+
+function dumpScriptArgumentName(name: scriptParser.ArgumentName): string {
+	if (typeof name === "string") {
+		return name;
+	}
+	return `${name.array}.${name.index}.${name.field}`;
+}
+
+
 class CodelensProvider implements vscode.CodeLensProvider {
 
 	private codeLenses: vscode.CodeLens[] = [];
@@ -135,7 +189,12 @@ class CompletionProvider implements vscode.CompletionItemProvider {
 
 				const args = (info.scriptApplyInfo.arguments ?? []).map(arg => arg.name);
 				const params = info.patternInfo.params ?? [];
-				const missingParams = params.filter(param => !args.includes(param));
+				const requiredArgs = unpackParams(params, args);
+
+				const dumpedArgs = args.map(dumpScriptArgumentName);
+				const dumpedRequiredArgs = requiredArgs.map(dumpScriptArgumentName);
+
+				const missingParams = dumpedRequiredArgs.filter(arg => !dumpedArgs.includes(arg));
 				const suggestedParams = missingParams.filter(param => param.startsWith(arg));
 
 				return suggestedParams.map(
@@ -209,15 +268,22 @@ function checkArgumentsSet(
 	const args = patternApplyInfo.scriptApplyInfo.arguments ?? [];
 	const argNames = args.map(arg => arg.name);
 	const params = patternApplyInfo.patternInfo.params ?? [];
+	const requiredArgs = unpackParams(params, argNames);
 
-	const extraArgs = argNames.filter(arg => !params.includes(arg));
-	const missingParams = params.filter(param => !argNames.includes(param));
+	console.log("required args:")
+	console.log(requiredArgs);
+
+	const dumpedArgNames = argNames.map(dumpScriptArgumentName);
+	const dumpedRequiredArgs = requiredArgs.map(dumpScriptArgumentName);
+
+	const extraArgs = dumpedArgNames.filter(arg => !dumpedRequiredArgs.includes(arg));
+	const missingArguments = dumpedRequiredArgs.filter(arg => !dumpedArgNames.includes(arg));
 
 	for (const extraArg of extraArgs) {
 		diagnostics.push(createRequiredArgumentError(document, patternApplyInfo, extraArg));
 	}
 
-	for (const missingParam of missingParams) {
+	for (const missingParam of missingArguments) {
 		diagnostics.push(createMissingParameterError(document, patternApplyInfo, missingParam));
 	}
 

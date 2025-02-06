@@ -2,11 +2,37 @@ import * as fs from "fs"
 import * as path from "path"
 
 
+export interface ParameterArray {
+    name: string;
+    elementFields: string[];
+}
+
+export type PatternParameter = string | ParameterArray
+
 export interface PatternInfo {
     scriptPath: string;
     docs: string;
-    params?: string[];
+    params?: PatternParameter[];
 };
+
+
+function parseParameter(value: any): PatternParameter {
+    if (typeof value === "string") {
+        return value;
+    }
+
+    if (typeof value === "object" && value !== null) {
+        // TODO: add fields' set validation
+        if (value["name"] !== undefined && value["fields"] !== undefined) {
+            return {
+                name: value["name"],
+                elementFields: value["fields"],
+            }
+        }
+    }
+
+    throw Error(`Unable to parse parameter: ${value}`)
+}
 
 
 export function IsPattern(workspaceFilePath: string, scriptPath: string) {
@@ -40,6 +66,6 @@ export function GetPatternInfo(workspaceFilePath: string, scriptPath: string): P
     return {
         scriptPath: fullScriptPath,
         docs: infoJsonData["doc"],
-        params: infoJsonData["params"],
+        params: infoJsonData["params"]?.map(parseParameter),
     };
 }

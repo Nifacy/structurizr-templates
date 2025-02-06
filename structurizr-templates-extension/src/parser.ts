@@ -9,8 +9,18 @@ const STRING_BRACKETS_EXPR = new RegExp(/^['"]|['"]$/g);
 const FIGURE_BRACKETS_EXPR = new RegExp(/^\{|\}$/g);
 
 
+export interface ArrayArgumentName {
+    array: string;
+    index: number;
+    field: string;
+}
+
+
+export type ArgumentName = string | ArrayArgumentName
+
+
 export interface ScriptArgument {
-    name: string;
+    name: ArgumentName;
     value: string;
 }
 
@@ -39,6 +49,28 @@ export function GetScriptApplyRanges(document: vscode.TextDocument): vscode.Rang
 }
 
 
+function parseScriptArgumentName(s: string): ArgumentName {
+    const parts = s.split(".");
+
+    if (parts.length === 1) {
+        return parts[0];
+    }
+
+    if (parts.length === 3) {
+        const [array, indexStr, field] = parts;
+        const index = parseInt(indexStr, 10);
+
+        return {
+            array: array,
+            index: index,
+            field: field,
+        };
+    }
+
+    throw Error(`Can't parse argument name: '${s}'`)
+}
+
+
 function parseScriptArgument(s: string): ScriptArgument {
     const matches = s.matchAll(PARAM_EXPR);
 
@@ -48,7 +80,7 @@ function parseScriptArgument(s: string): ScriptArgument {
         }
 
         return {
-            name: match.groups.name,
+            name: parseScriptArgumentName(match.groups.name),
             value: match.groups.value.replace(STRING_BRACKETS_EXPR, ""),
         }
     }
