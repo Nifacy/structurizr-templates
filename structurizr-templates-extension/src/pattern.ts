@@ -1,5 +1,6 @@
 import * as fs from "fs"
 import * as path from "path"
+import * as yaml from "js-yaml";
 
 
 export interface ParameterArray {
@@ -44,7 +45,7 @@ export function IsPattern(workspaceFilePath: string, scriptPath: string) {
     }
 
     const parentDir = path.dirname(fullScriptPath);
-    const infoFilePath = path.join(parentDir, "info.json");
+    const infoFilePath = path.join(parentDir, "info.yaml");
 
     if (!fs.existsSync(infoFilePath)) {
         return false;
@@ -58,10 +59,10 @@ export function GetPatternInfo(workspaceFilePath: string, scriptPath: string): P
     const workspaceDirectory = path.dirname(workspaceFilePath);
     const fullScriptPath = path.join(workspaceDirectory, scriptPath);
     const parentDir = path.dirname(fullScriptPath);
-    const infoFilePath = path.join(parentDir, "info.json");
+    const infoFilePath = path.join(parentDir, "info.yaml");
 
     const infoJsonContent = fs.readFileSync(infoFilePath, "utf8");
-    const infoJsonData = JSON.parse(infoJsonContent);
+    const infoJsonData = yaml.load(infoJsonContent) as any;
 
     return {
         scriptPath: fullScriptPath,
