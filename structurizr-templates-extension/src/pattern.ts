@@ -3,36 +3,60 @@ import * as path from "path"
 import * as yaml from "js-yaml";
 
 
-export interface ParameterArray {
+export interface Field {
     name: string;
-    elementFields: string[];
+    optional: boolean;
+};
+
+
+export interface FieldGroup {
+    name: string;
+    fields: Field[];
 }
 
-export type PatternParameter = string | ParameterArray
+export type Parameter = Field | FieldGroup
 
 export interface PatternInfo {
     scriptPath: string;
     docs: string;
-    params?: PatternParameter[];
+    params?: Parameter[];
 };
 
 
-function parseParameter(value: any): PatternParameter {
+function parseSingleField(value: any): Field {
     if (typeof value === "string") {
-        return value;
+        return {
+            name: value,
+            optional: false,
+        };
     }
 
+    if (typeof value === "object" && value !== null) {
+        if (value["name"] !== undefined && value["optional"] !== undefined) {
+            return {
+                name: value["name"],
+                optional: value["optional"],
+            };
+        }
+    }
+
+    throw Error(`Unable to parse argument: ${value}`);
+}
+
+
+function parseParameter(value: any): Parameter {
+    // check if it is a fields' group
     if (typeof value === "object" && value !== null) {
         // TODO: add fields' set validation
         if (value["name"] !== undefined && value["fields"] !== undefined) {
             return {
                 name: value["name"],
-                elementFields: value["fields"],
-            }
+                fields: value["fields"].map(parseSingleField),
+            };
         }
     }
 
-    throw Error(`Unable to parse parameter: ${value}`)
+    return parseSingleField(value);
 }
 
 

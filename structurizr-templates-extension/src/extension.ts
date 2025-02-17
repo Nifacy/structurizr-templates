@@ -12,6 +12,12 @@ interface PatternApplyInfo {
 };
 
 
+interface UnpackedParameter {
+	argumentName: scriptParser.ArgumentName;
+	optional: boolean;
+};
+
+
 async function openFileInNewTab(filePath: string): Promise<void> {
 	if (!fs.existsSync(filePath)) {
 		throw Error(`The file ${filePath} does not exist.`)
@@ -59,29 +65,38 @@ function getDefinedIndexes(name: string, argNames: scriptParser.ArgumentName[]):
 
 
 function unpackParams(
-	params: pattern.PatternParameter[],
+	params: pattern.Parameter[],
 	args: scriptParser.ArgumentName[]
-): scriptParser.ArgumentName[] {
-	const requiredArgs: scriptParser.ArgumentName[] = [];
+): UnpackedParameter[] {
+	const result: UnpackedParameter[] = [];
 
 	for (const param of params) {
-		if (typeof param === "string") {
-			requiredArgs.push(param);
+		if ((param as pattern.Field).optional !== undefined) {
+			const singledField = param as pattern.Field;
+
+			result.push({
+				argumentName: singledField.name,
+				optional: singledField.optional,
+			});
 			continue;
 		}
 	
-		for (const index of getDefinedIndexes(param.name, args)) {
-			for (const field of param.elementFields) {
-				requiredArgs.push({
-					array: param.name,
-					index: index,
-					field: field,
+		const fieldGroup = param as pattern.FieldGroup;
+		for (const index of getDefinedIndexes(fieldGroup.name, args)) {
+			for (const field of fieldGroup.fields) {
+				result.push({
+					argumentName: {
+						array: param.name,
+						index: index,
+						field: field.name,
+					},
+					optional: field.optional,
 				});
 			}
-		}	
+		}
 	}
 
-	return requiredArgs;
+	return result;
 }
 
 
@@ -189,10 +204,10 @@ class CompletionProvider implements vscode.CompletionItemProvider {
 
 				const args = (info.scriptApplyInfo.arguments ?? []).map(arg => arg.name);
 				const params = info.patternInfo.params ?? [];
-				const requiredArgs = unpackParams(params, args);
+				const totalArgs = unpackParams(params, args).map(p => p.argumentName);
 
 				const dumpedArgs = args.map(dumpScriptArgumentName);
-				const dumpedRequiredArgs = requiredArgs.map(dumpScriptArgumentName);
+				const dumpedRequiredArgs = totalArgs.map(dumpScriptArgumentName);
 
 				const missingParams = dumpedRequiredArgs.filter(arg => !dumpedArgs.includes(arg));
 				const suggestedParams = missingParams.filter(param => param.startsWith(arg));
@@ -268,15 +283,22 @@ function checkArgumentsSet(
 	const args = patternApplyInfo.scriptApplyInfo.arguments ?? [];
 	const argNames = args.map(arg => arg.name);
 	const params = patternApplyInfo.patternInfo.params ?? [];
-	const requiredArgs = unpackParams(params, argNames);
+
+	const unpackedParams = unpackParams(params, argNames);
+	const requiredArgs = unpackedParams.filter(p => !p.optional).map(p => p.argumentName);
+	const totalArgs = unpackedParams.map(p => p.argumentName);
 
 	console.log("required args:")
 	console.log(requiredArgs);
 
+	console.log("total args:");
+	console.log(totalArgs);
+
 	const dumpedArgNames = argNames.map(dumpScriptArgumentName);
 	const dumpedRequiredArgs = requiredArgs.map(dumpScriptArgumentName);
+	const dumpedTotalArgs = totalArgs.map(dumpScriptArgumentName);
 
-	const extraArgs = dumpedArgNames.filter(arg => !dumpedRequiredArgs.includes(arg));
+	const extraArgs = dumpedArgNames.filter(arg => !dumpedTotalArgs.includes(arg));
 	const missingArguments = dumpedRequiredArgs.filter(arg => !dumpedArgNames.includes(arg));
 
 	for (const extraArg of extraArgs) {
