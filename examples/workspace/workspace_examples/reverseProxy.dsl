@@ -26,7 +26,7 @@ workspace "Reverse Proxy" {
         webApp -> db2 "Requests users"
         app3 -> db2 "ABOBA"
 
-       !script ../reverseProxy.kts {
+       !plugin com.patterns.ReverseProxy {
            target webApp
        }
     }

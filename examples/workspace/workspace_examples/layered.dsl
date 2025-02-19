@@ -25,7 +25,7 @@ workspace "Layered architecture" {
 
         // consumerFrontend -> databaseMain "Bad relationship"
 
-        !script ../layered.kts {
+        !plugin com.patterns.Layered {
             layer.0.name "Frontend Layer"
             layer.0.elements consumerFrontend,sellerFrontend
 

@@ -13,13 +13,13 @@ workspace {
         user -> orderApp "Creates order"
         orderApp -> paymentApp "Sends payment request"
 
-        !script ../databasePerService.kts {
+        !plugin com.patterns.DatabasePerService {
             service          orderApp
             database         paymentDatabase
             dataDescription  "order data"
         }
 
-        !script ../databasePerService.kts {
+        !plugin com.patterns.DatabasePerService {
             service          paymentApp
             database         paymentDatabase
             dataDescription  "payment data"
