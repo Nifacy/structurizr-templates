@@ -13,7 +13,7 @@ import com.structurizr.view.AutomaticLayout;
 import com.structurizr.view.DynamicView;
 import com.structurizr.view.ViewSet;
 
-public class Saga implements StructurizrDslPlugin {
+public class Saga extends Pattern implements StructurizrDslPlugin {
 
     private class SagaItem {
 

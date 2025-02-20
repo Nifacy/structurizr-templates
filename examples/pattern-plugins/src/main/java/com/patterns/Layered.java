@@ -12,7 +12,7 @@ import com.structurizr.model.Container;
 import com.structurizr.model.Element;
 import com.structurizr.model.Relationship;
 
-public class Layered implements StructurizrDslPlugin {
+public class Layered extends Pattern implements StructurizrDslPlugin {
 
     private class LayerGroup {
 

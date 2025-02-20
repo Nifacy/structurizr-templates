@@ -12,7 +12,7 @@ import com.structurizr.model.Model;
 import com.structurizr.model.Relationship;
 import com.structurizr.model.SoftwareSystem;
 
-public class ReverseProxy implements StructurizrDslPlugin {
+public class ReverseProxy extends Pattern implements StructurizrDslPlugin {
 
     @Override
     public void run(StructurizrDslPluginContext context) {

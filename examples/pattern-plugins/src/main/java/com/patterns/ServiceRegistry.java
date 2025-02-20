@@ -11,7 +11,7 @@ import com.structurizr.dsl.StructurizrDslPluginContext;
 import com.structurizr.model.Container;
 import com.structurizr.model.Element;
 
-public class ServiceRegistry implements StructurizrDslPlugin {
+public class ServiceRegistry extends Pattern implements StructurizrDslPlugin {
 
     private class RegistryQuery {
 

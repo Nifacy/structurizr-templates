@@ -9,7 +9,7 @@ import com.structurizr.model.Element;
 import com.structurizr.model.Model;
 import com.structurizr.model.Relationship;
 
-public class DatabasePerService implements StructurizrDslPlugin {
+public class DatabasePerService extends Pattern implements StructurizrDslPlugin {
 
     @Override
     public void run(StructurizrDslPluginContext context) {
