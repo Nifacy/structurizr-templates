@@ -17,7 +17,7 @@ export interface FieldGroup {
 export type Parameter = Field | FieldGroup
 
 export interface PatternInfo {
-    scriptPath: string;
+    pluginName: string;
     docs: string;
     params?: Parameter[];
 };
@@ -60,16 +60,10 @@ function parseParameter(value: any): Parameter {
 }
 
 
-export function IsPattern(workspaceFilePath: string, scriptPath: string) {
+export function IsPattern(workspaceFilePath: string, pluginName: string) {
     const workspaceDirectory = path.dirname(workspaceFilePath);
-    const fullScriptPath = path.join(workspaceDirectory, scriptPath);
-
-    if (!fs.existsSync(fullScriptPath)) {
-        return false;
-    }
-
-    const parentDir = path.dirname(fullScriptPath);
-    const infoFilePath = path.join(parentDir, "info.yaml");
+    const infoDirectory = path.join(workspaceDirectory, "patterns-info");
+    const infoFilePath = path.join(infoDirectory, `${pluginName}.yaml`);
 
     if (!fs.existsSync(infoFilePath)) {
         return false;
@@ -79,17 +73,16 @@ export function IsPattern(workspaceFilePath: string, scriptPath: string) {
 }
 
 
-export function GetPatternInfo(workspaceFilePath: string, scriptPath: string): PatternInfo {
+export function GetPatternInfo(workspaceFilePath: string, pluginName: string): PatternInfo {
     const workspaceDirectory = path.dirname(workspaceFilePath);
-    const fullScriptPath = path.join(workspaceDirectory, scriptPath);
-    const parentDir = path.dirname(fullScriptPath);
-    const infoFilePath = path.join(parentDir, "info.yaml");
+    const infoDirectory = path.join(workspaceDirectory, "patterns-info");
+    const infoFilePath = path.join(infoDirectory, `${pluginName}.yaml`);
 
     const infoJsonContent = fs.readFileSync(infoFilePath, "utf8");
     const infoJsonData = yaml.load(infoJsonContent) as any;
 
     return {
-        scriptPath: fullScriptPath,
+        pluginName: pluginName,
         docs: infoJsonData["doc"],
         params: infoJsonData["params"]?.map(parseParameter),
     };

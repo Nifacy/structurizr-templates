@@ -1,19 +1,19 @@
 import * as vscode from "vscode";
 import * as fs from "fs"
 
-import * as scriptParser from "./parser";
+import * as pluginParser from "./parser";
 import * as pattern from "./pattern"
 
 
 interface PatternApplyInfo {
 	range: vscode.Range;
-	scriptApplyInfo: scriptParser.ScriptApplyInfo;
+	pluginApplyInfo: pluginParser.PluginApplyInfo;
 	patternInfo: pattern.PatternInfo;
 };
 
 
 interface UnpackedParameter {
-	argumentName: scriptParser.ArgumentName;
+	argumentName: pluginParser.ArgumentName;
 	optional: boolean;
 };
 
@@ -30,22 +30,22 @@ async function openFileInNewTab(filePath: string): Promise<void> {
 
 function getPatternApply(document: vscode.TextDocument, applyRange: vscode.Range): PatternApplyInfo | undefined {
 	const workspaceFilePath = document.fileName;
-	const rawScriptApplyText = document.getText(applyRange);
-	const scriptApplyInfo = scriptParser.ParseScriptApplyInfo(rawScriptApplyText);
+	const rawPluginApplyText = document.getText(applyRange);
+	const pluginApplyInfo = pluginParser.ParsePluginApplyInfo(rawPluginApplyText);
 
-	if (!pattern.IsPattern(workspaceFilePath, scriptApplyInfo.path)) {
+	if (!pattern.IsPattern(workspaceFilePath, pluginApplyInfo.name)) {
 		return undefined;
 	}
 
 	return {
 		range: applyRange,
-		scriptApplyInfo: scriptApplyInfo,
-		patternInfo: pattern.GetPatternInfo(workspaceFilePath, scriptApplyInfo.path),
+		pluginApplyInfo: pluginApplyInfo,
+		patternInfo: pattern.GetPatternInfo(workspaceFilePath, pluginApplyInfo.name),
 	};
 }
 
 
-function getDefinedIndexes(name: string, argNames: scriptParser.ArgumentName[]): number[] {
+function getDefinedIndexes(name: string, argNames: pluginParser.ArgumentName[]): number[] {
 	const definedIndexes: number[] = [];
 
 	for (const argName of argNames) {
@@ -66,7 +66,7 @@ function getDefinedIndexes(name: string, argNames: scriptParser.ArgumentName[]):
 
 function unpackParams(
 	params: pattern.Parameter[],
-	args: scriptParser.ArgumentName[]
+	args: pluginParser.ArgumentName[]
 ): UnpackedParameter[] {
 	const result: UnpackedParameter[] = [];
 
@@ -100,7 +100,7 @@ function unpackParams(
 }
 
 
-function dumpScriptArgumentName(name: scriptParser.ArgumentName): string {
+function dumpPluginArgumentName(name: pluginParser.ArgumentName): string {
 	if (typeof name === "string") {
 		return name;
 	}
@@ -123,7 +123,7 @@ class CodelensProvider implements vscode.CodeLensProvider {
 	public provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
 		this.codeLenses = [];
 
-		for (const applyRange of scriptParser.GetScriptApplyRanges(document)) {
+		for (const applyRange of pluginParser.GetPluginApplyRanges(document)) {
 			try {
 				const info = getPatternApply(document, applyRange);
 				if (info === undefined) {
@@ -132,8 +132,8 @@ class CodelensProvider implements vscode.CodeLensProvider {
 
 				const goToDefinitionCommand: vscode.Command = {
 					title: "Go to pattern definition",
-					command: "structurizr-templates.showScriptDefinition",
-					arguments: [info.patternInfo.scriptPath],
+					command: "structurizr-templates.showPluginDefinition",
+					arguments: [info.patternInfo.pluginName],
 				};
 
 				this.codeLenses.push(new vscode.CodeLens(info.range, goToDefinitionCommand));
@@ -157,7 +157,7 @@ class HoverProvider implements vscode.HoverProvider {
 		position: vscode.Position,
 		token: vscode.CancellationToken
 	): vscode.ProviderResult<vscode.Hover> {
-		for (const applyRange of scriptParser.GetScriptApplyRanges(document)) {
+		for (const applyRange of pluginParser.GetPluginApplyRanges(document)) {
 			if (!applyRange.contains(position)) {
 				continue;
 			}
@@ -189,7 +189,7 @@ class CompletionProvider implements vscode.CompletionItemProvider {
 	): vscode.ProviderResult<vscode.CompletionItem[]> {
 		console.log("Completion Provider called");
 
-		for (const applyRange of scriptParser.GetScriptApplyRanges(document)) {
+		for (const applyRange of pluginParser.GetPluginApplyRanges(document)) {
 			if (!applyRange.contains(position)) {
 				continue;
 			}
@@ -199,15 +199,15 @@ class CompletionProvider implements vscode.CompletionItemProvider {
 				continue;
 			}
 
-			if (info.scriptApplyInfo.unfinishedArgumet !== undefined) {
-				const arg = info.scriptApplyInfo.unfinishedArgumet;
+			if (info.pluginApplyInfo.unfinishedArgumet !== undefined) {
+				const arg = info.pluginApplyInfo.unfinishedArgumet;
 
-				const args = (info.scriptApplyInfo.arguments ?? []).map(arg => arg.name);
+				const args = (info.pluginApplyInfo.arguments ?? []).map(arg => arg.name);
 				const params = info.patternInfo.params ?? [];
 				const totalArgs = unpackParams(params, args).map(p => p.argumentName);
 
-				const dumpedArgs = args.map(dumpScriptArgumentName);
-				const dumpedRequiredArgs = totalArgs.map(dumpScriptArgumentName);
+				const dumpedArgs = args.map(dumpPluginArgumentName);
+				const dumpedRequiredArgs = totalArgs.map(dumpPluginArgumentName);
 
 				const missingParams = dumpedRequiredArgs.filter(arg => !dumpedArgs.includes(arg));
 				const suggestedParams = missingParams.filter(param => param.startsWith(arg));
@@ -231,14 +231,14 @@ function createRequiredArgumentError(
 	patternApplyInfo: PatternApplyInfo,
 	extraArgument: string,
 ): vscode.Diagnostic {
-	const scriptText = document.getText(patternApplyInfo.range);
-	const scriptOffset = document.offsetAt(patternApplyInfo.range.start);
+	const pluginText = document.getText(patternApplyInfo.range);
+	const pluginOffset = document.offsetAt(patternApplyInfo.range.start);
 
-	const startIndex = scriptText.indexOf(extraArgument);
+	const startIndex = pluginText.indexOf(extraArgument);
 	const endIndex = startIndex + extraArgument.length;
 
-	const startPosition = document.positionAt(scriptOffset + startIndex);
-	const endPosition = document.positionAt(scriptOffset + endIndex);
+	const startPosition = document.positionAt(pluginOffset + startIndex);
+	const endPosition = document.positionAt(pluginOffset + endIndex);
 
 	return {
 		message: `Extra argument '${extraArgument}'`,
@@ -253,11 +253,11 @@ function createMissingParameterError(
 	patternApplyInfo: PatternApplyInfo,
 	missingParameter: string,
 ): vscode.Diagnostic {
-	const scriptOffset = document.offsetAt(patternApplyInfo.range.start);
-	const scriptText = document.getText(patternApplyInfo.range);
+	const pluginOffset = document.offsetAt(patternApplyInfo.range.start);
+	const pluginText = document.getText(patternApplyInfo.range);
 
-	const startHeaderPosition = document.positionAt(scriptOffset);
-	const endHeaderPosition = document.positionAt(scriptOffset + scriptText.indexOf(" "));
+	const startHeaderPosition = document.positionAt(pluginOffset);
+	const endHeaderPosition = document.positionAt(pluginOffset + pluginText.indexOf(" "));
 
 	const headerRange = new vscode.Range(startHeaderPosition, endHeaderPosition);
 
@@ -275,12 +275,11 @@ function checkArgumentsSet(
 ): vscode.Diagnostic[] {
 	const diagnostics: vscode.Diagnostic[] = [];
 
-	console.log(`Script: ${patternApplyInfo.patternInfo.scriptPath}`);
-	for (const arg of patternApplyInfo.scriptApplyInfo.arguments) {
+	for (const arg of patternApplyInfo.pluginApplyInfo.arguments) {
 		console.log(`- ${arg.name}`);
 	}
 
-	const args = patternApplyInfo.scriptApplyInfo.arguments ?? [];
+	const args = patternApplyInfo.pluginApplyInfo.arguments ?? [];
 	const argNames = args.map(arg => arg.name);
 	const params = patternApplyInfo.patternInfo.params ?? [];
 
@@ -294,9 +293,9 @@ function checkArgumentsSet(
 	console.log("total args:");
 	console.log(totalArgs);
 
-	const dumpedArgNames = argNames.map(dumpScriptArgumentName);
-	const dumpedRequiredArgs = requiredArgs.map(dumpScriptArgumentName);
-	const dumpedTotalArgs = totalArgs.map(dumpScriptArgumentName);
+	const dumpedArgNames = argNames.map(dumpPluginArgumentName);
+	const dumpedRequiredArgs = requiredArgs.map(dumpPluginArgumentName);
+	const dumpedTotalArgs = totalArgs.map(dumpPluginArgumentName);
 
 	const extraArgs = dumpedArgNames.filter(arg => !dumpedTotalArgs.includes(arg));
 	const missingArguments = dumpedRequiredArgs.filter(arg => !dumpedArgNames.includes(arg));
@@ -316,7 +315,7 @@ function checkArgumentsSet(
 function updateDiagnostics(document: vscode.TextDocument, collection: vscode.DiagnosticCollection): void {
 	const argumentsCheckDiagnostics: vscode.Diagnostic[] = [];
 
-	for (const applyRange of scriptParser.GetScriptApplyRanges(document)) {
+	for (const applyRange of pluginParser.GetPluginApplyRanges(document)) {
 		try {
 			const info = getPatternApply(document, applyRange);
 			if (info === undefined) {
@@ -362,8 +361,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log("Register commands ...");
 
 	vscode.commands.registerCommand(
-		"structurizr-templates.showScriptDefinition",
-		(scriptPath: string) => openFileInNewTab(scriptPath),
+		"structurizr-templates.showPluginDefinition",
+		(pluginName: string) => openFileInNewTab(pluginName),
 	);
 
 	console.log("Register commands ... [ok]")

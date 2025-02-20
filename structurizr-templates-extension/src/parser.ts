@@ -1,8 +1,8 @@
 import * as vscode from "vscode"
 
 
-const SCRIPT_APPLY_EXPR = new RegExp(/(!script\s+(?:["']([^"'\n]+)["']|\S+)(?:\s*\{[\s\S]*?\})?)/g);
-const SCRIPT_EXPR = new RegExp(/^!script (?<path>\S+|(?:['"][^'"]+['"]))\s*(?:\{(?<params>[\s\S]*?)\})?$/gm);
+const PLUGIN_APPLY_EXPR = new RegExp(/(!plugin\s+([a-z0-9]+(\.[a-zA-Z0-9_$]+)*)(?:\s*\{[\s\S]*?\})?)/g);
+const PLUGIN_EXPR = new RegExp(/^!plugin\s+(?<name>[a-z0-9]+(\.[a-zA-Z0-9_$]+)*)\s*(?:\{(?<params>[\s\S]*?)\})?$/gm);
 const PARAM_EXPR = new RegExp(/^\s*(?<name>\S+)\s+(?<value>(?:['"][^'"\n]+['"])|\S+)\s*$/g);
 const UNFINISHED_PARAM_EXPR = new RegExp(/^\s*(?<name>\S+)\s*$/g);
 const STRING_BRACKETS_EXPR = new RegExp(/^['"]|['"]$/g);
@@ -19,20 +19,20 @@ export interface ArrayArgumentName {
 export type ArgumentName = string | ArrayArgumentName
 
 
-export interface ScriptArgument {
+export interface PluginArgument {
     name: ArgumentName;
     value: string;
 }
 
-export interface ScriptApplyInfo {
-    path: string;
-    arguments: ScriptArgument[];
+export interface PluginApplyInfo {
+    name: string;
+    arguments: PluginArgument[];
     unfinishedArgumet?: string;
 }
 
 
-export function GetScriptApplyRanges(document: vscode.TextDocument): vscode.Range[] {
-    const regex = new RegExp(SCRIPT_APPLY_EXPR);
+export function GetPluginApplyRanges(document: vscode.TextDocument): vscode.Range[] {
+    const regex = new RegExp(PLUGIN_APPLY_EXPR);
     const text = document.getText();
     let matches;
 
@@ -49,7 +49,7 @@ export function GetScriptApplyRanges(document: vscode.TextDocument): vscode.Rang
 }
 
 
-function parseScriptArgumentName(s: string): ArgumentName {
+function parsePluginArgumentName(s: string): ArgumentName {
     const parts = s.split(".");
 
     if (parts.length === 1) {
@@ -71,7 +71,7 @@ function parseScriptArgumentName(s: string): ArgumentName {
 }
 
 
-function parseScriptArgument(s: string): ScriptArgument {
+function parsePluginArgument(s: string): PluginArgument {
     const matches = s.matchAll(PARAM_EXPR);
 
     for (let match of matches) {
@@ -80,7 +80,7 @@ function parseScriptArgument(s: string): ScriptArgument {
         }
 
         return {
-            name: parseScriptArgumentName(match.groups.name),
+            name: parsePluginArgumentName(match.groups.name),
             value: match.groups.value.replace(STRING_BRACKETS_EXPR, ""),
         }
     }
@@ -89,7 +89,7 @@ function parseScriptArgument(s: string): ScriptArgument {
 }
 
 
-function parseUnfinishedScriptArgument(s: string): string {
+function parseUnfinishedPluginArgument(s: string): string {
     const matches = s.matchAll(UNFINISHED_PARAM_EXPR);
 
     for (let match of matches) {
@@ -112,10 +112,10 @@ function splitByLines(text: string): string[] {
 }
 
 
-export function ParseScriptApplyInfo(text: string): ScriptApplyInfo {
-    const matches = text.matchAll(SCRIPT_EXPR);
-    let scriptPath: string | undefined = undefined;
-    let scriptArgs: ScriptArgument[] = [];
+export function ParsePluginApplyInfo(text: string): PluginApplyInfo {
+    const matches = text.matchAll(PLUGIN_EXPR);
+    let pluginName: string | undefined = undefined;
+    let pluginArgs: PluginArgument[] = [];
     let unfinishedArgument: string | undefined = undefined;
 
     for (let match of matches) {
@@ -123,22 +123,22 @@ export function ParseScriptApplyInfo(text: string): ScriptApplyInfo {
             throw Error("Unexpected empty group");
         }
 
-        scriptPath = match.groups.path.replace(STRING_BRACKETS_EXPR, "");
+        pluginName = match.groups.name.replace(STRING_BRACKETS_EXPR, "");
 
         if (match.groups?.params) {
             for (const line of splitByLines(match.groups.params)) {
                 try {
-                    const parsedArgument = parseScriptArgument(line);
-                    scriptArgs.push(parsedArgument);
+                    const parsedArgument = parsePluginArgument(line);
+                    pluginArgs.push(parsedArgument);
                 } catch {
-                    unfinishedArgument = parseUnfinishedScriptArgument(line);
+                    unfinishedArgument = parseUnfinishedPluginArgument(line);
                 }
             }
         }
 
         return {
-            path: scriptPath,
-            arguments: scriptArgs,
+            name: pluginName,
+            arguments: pluginArgs,
             unfinishedArgumet: unfinishedArgument,
         };
     }
