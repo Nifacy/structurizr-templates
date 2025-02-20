@@ -3,6 +3,7 @@ import * as fs from "fs"
 
 import * as pluginParser from "./parser";
 import * as pattern from "./pattern"
+import { PatternLens } from "./patternLens";
 
 
 interface PatternApplyInfo {
@@ -28,12 +29,17 @@ async function openFileInNewTab(filePath: string): Promise<void> {
 }
 
 
-function getPatternApply(document: vscode.TextDocument, applyRange: vscode.Range): PatternApplyInfo | undefined {
+async function getPatternApply(
+	patternLens: PatternLens,
+	document: vscode.TextDocument,
+	applyRange: vscode.Range
+): Promise<PatternApplyInfo | undefined> {
 	const workspaceFilePath = document.fileName;
 	const rawPluginApplyText = document.getText(applyRange);
 	const pluginApplyInfo = pluginParser.ParsePluginApplyInfo(rawPluginApplyText);
 
-	if (!pattern.IsPattern(workspaceFilePath, pluginApplyInfo.name)) {
+	const isPattern = await patternLens.IsPattern(workspaceFilePath, pluginApplyInfo.name);
+	if (!isPattern) {
 		return undefined;
 	}
 
@@ -49,18 +55,18 @@ function getDefinedIndexes(name: string, argNames: pluginParser.ArgumentName[]):
 	const definedIndexes: number[] = [];
 
 	for (const argName of argNames) {
-        if (typeof argName === "string") {
-            continue;
-        }
+		if (typeof argName === "string") {
+			continue;
+		}
 
-        if (argName.array === name) {
-            if (!definedIndexes.includes(argName.index)) {
+		if (argName.array === name) {
+			if (!definedIndexes.includes(argName.index)) {
 				definedIndexes.push(argName.index);
 			}
-        }
-    }
+		}
+	}
 
-    return definedIndexes;
+	return definedIndexes;
 }
 
 
@@ -80,7 +86,7 @@ function unpackParams(
 			});
 			continue;
 		}
-	
+
 		const fieldGroup = param as pattern.FieldGroup;
 		for (const index of getDefinedIndexes(fieldGroup.name, args)) {
 			for (const field of fieldGroup.fields) {
@@ -110,22 +116,33 @@ function dumpPluginArgumentName(name: pluginParser.ArgumentName): string {
 
 class CodelensProvider implements vscode.CodeLensProvider {
 
+	private patternLens: PatternLens;
 	private codeLenses: vscode.CodeLens[] = [];
 	private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
 	public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
 
-	constructor() {
+	constructor(patternLens: PatternLens) {
+		this.patternLens = patternLens;
+
 		vscode.workspace.onDidChangeConfiguration((_) => {
 			this._onDidChangeCodeLenses.fire();
 		});
 	}
 
-	public provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): vscode.CodeLens[] | Thenable<vscode.CodeLens[]> {
+	public provideCodeLenses(document: vscode.TextDocument, _token: vscode.CancellationToken): Thenable<vscode.CodeLens[]> {
+		return this.asyncProvideCodeLens(document);
+	}
+
+	public resolveCodeLens(codeLens: vscode.CodeLens, _token: vscode.CancellationToken) {
+		return codeLens;
+	}
+
+	private async asyncProvideCodeLens(document: vscode.TextDocument): Promise<vscode.CodeLens[]> {
 		this.codeLenses = [];
 
 		for (const applyRange of pluginParser.GetPluginApplyRanges(document)) {
 			try {
-				const info = getPatternApply(document, applyRange);
+				const info = await getPatternApply(this.patternLens, document, applyRange);
 				if (info === undefined) {
 					continue;
 				}
@@ -144,26 +161,35 @@ class CodelensProvider implements vscode.CodeLensProvider {
 
 		return this.codeLenses;
 	}
-
-	public resolveCodeLens(codeLens: vscode.CodeLens, _token: vscode.CancellationToken) {
-		return codeLens;
-	}
 }
 
 
 class HoverProvider implements vscode.HoverProvider {
+	private patternLens: PatternLens;
+
+	constructor(patternLens: PatternLens) {
+		this.patternLens = patternLens;
+	}
+
 	provideHover(
 		document: vscode.TextDocument,
 		position: vscode.Position,
 		token: vscode.CancellationToken
 	): vscode.ProviderResult<vscode.Hover> {
+		return this.asyncProvideHover(document, position);
+	}
+
+	private async asyncProvideHover(
+		document: vscode.TextDocument,
+		position: vscode.Position,
+	): Promise<vscode.Hover | undefined> {
 		for (const applyRange of pluginParser.GetPluginApplyRanges(document)) {
 			if (!applyRange.contains(position)) {
 				continue;
 			}
 
 			try {
-				const info = getPatternApply(document, applyRange);
+				const info = await getPatternApply(this.patternLens, document, applyRange);
 				if (info?.patternInfo.docs === undefined) {
 					continue;
 				}
@@ -181,12 +207,25 @@ class HoverProvider implements vscode.HoverProvider {
 
 
 class CompletionProvider implements vscode.CompletionItemProvider {
+	private patternLens: PatternLens;
+
+	constructor(patternLens: PatternLens) {
+		this.patternLens = patternLens;
+	}
+
 	provideCompletionItems(
 		document: vscode.TextDocument,
 		position: vscode.Position,
 		token: vscode.CancellationToken,
 		context: vscode.CompletionContext,
 	): vscode.ProviderResult<vscode.CompletionItem[]> {
+		return this.asyncProvideCompletionItems(document, position);
+	}
+
+	private async asyncProvideCompletionItems(
+		document: vscode.TextDocument,
+		position: vscode.Position,
+	): Promise<vscode.CompletionItem[] | undefined> {
 		console.log("Completion Provider called");
 
 		for (const applyRange of pluginParser.GetPluginApplyRanges(document)) {
@@ -194,7 +233,7 @@ class CompletionProvider implements vscode.CompletionItemProvider {
 				continue;
 			}
 
-			const info = getPatternApply(document, applyRange);
+			const info = await getPatternApply(this.patternLens, document, applyRange);
 			if (info === undefined) {
 				continue;
 			}
@@ -312,12 +351,16 @@ function checkArgumentsSet(
 }
 
 
-function updateDiagnostics(document: vscode.TextDocument, collection: vscode.DiagnosticCollection): void {
+async function updateDiagnostics(
+	patternLens: PatternLens,
+	document: vscode.TextDocument,
+	collection: vscode.DiagnosticCollection,
+): Promise<void> {
 	const argumentsCheckDiagnostics: vscode.Diagnostic[] = [];
 
 	for (const applyRange of pluginParser.GetPluginApplyRanges(document)) {
 		try {
-			const info = getPatternApply(document, applyRange);
+			const info = await getPatternApply(patternLens, document, applyRange);
 			if (info === undefined) {
 				continue;
 			}
@@ -336,65 +379,86 @@ function updateDiagnostics(document: vscode.TextDocument, collection: vscode.Dia
 
 
 export async function activate(context: vscode.ExtensionContext) {
-	console.log("Activate ...");
+	try {
+		console.log("Activate ...");
 
-	console.log("Register CodeLens provider...");
+		const extensionConfig = vscode.workspace.getConfiguration("structurizrPatterns");
 
-	context.subscriptions.push(
-		vscode.languages.registerCodeLensProvider(
+		console.log("Initialize Pattern Lens client...");
+
+		const patternLensPath = extensionConfig.get("patternLensPath") as (string | undefined);
+		if (patternLensPath === undefined) {
+			throw Error("Pattern Lens jar file not defined");
+		}
+
+		if (!fs.existsSync(patternLensPath)) {
+			throw Error(`Pattern Lens jar file '${patternLensPath}' doesn't exist`);
+		}
+
+		const patternLensClient = new PatternLens(patternLensPath);
+
+		console.log("Initialize Pattern Lens client... [ok]");
+
+		console.log("Register CodeLens provider...");
+
+		context.subscriptions.push(
+			vscode.languages.registerCodeLensProvider(
+				"*",
+				new CodelensProvider(patternLensClient),
+			)
+		);
+
+		console.log("Register CodeLens provider... [ok]");
+
+		console.log("Register Hover provider ...");
+
+		vscode.languages.registerHoverProvider(
 			"*",
-			new CodelensProvider()
-		)
-	);
+			new HoverProvider(patternLensClient),
+		);
 
-	console.log("Register CodeLens provider... [ok]");
+		console.log("Register Hover provider ... [ok]");
 
-	console.log("Register Hover provider ...");
+		console.log("Register commands ...");
 
-	vscode.languages.registerHoverProvider(
-		"*",
-		new HoverProvider(),
-	);
+		vscode.commands.registerCommand(
+			"structurizr-templates.showPluginDefinition",
+			(pluginName: string) => openFileInNewTab(pluginName),
+		);
 
-	console.log("Register Hover provider ... [ok]");
+		console.log("Register commands ... [ok]")
 
-	console.log("Register commands ...");
+		console.log("Register diagnostics ...");
 
-	vscode.commands.registerCommand(
-		"structurizr-templates.showPluginDefinition",
-		(pluginName: string) => openFileInNewTab(pluginName),
-	);
+		const collection = vscode.languages.createDiagnosticCollection("structurizr-templates.diagnostics");
 
-	console.log("Register commands ... [ok]")
+		if (vscode.window.activeTextEditor) {
+			updateDiagnostics(patternLensClient, vscode.window.activeTextEditor.document, collection);
+		}
 
-	console.log("Register diagnostics ...");
+		context.subscriptions.push(
+			vscode.workspace.onDidSaveTextDocument(document => {
+				updateDiagnostics(patternLensClient, document, collection);
+			})
+		);
 
-	const collection = vscode.languages.createDiagnosticCollection("structurizr-templates.diagnostics");
+		console.log("Register diagnostics ... [ok]");
 
-	if (vscode.window.activeTextEditor) {
-		updateDiagnostics(vscode.window.activeTextEditor.document, collection);
+		console.log("Register completion provider ...");
+
+		context.subscriptions.push(
+			vscode.languages.registerCompletionItemProvider(
+				"*",
+				new CompletionProvider(patternLensClient),
+			)
+		);
+
+		console.log("Register completion provider ... [ok]");
+
+		console.log("Activate ... [ok]");
+	} catch (e) {
+		console.error(`[error] ${e}`);
 	}
-
-	context.subscriptions.push(
-		vscode.workspace.onDidSaveTextDocument(document => {
-			updateDiagnostics(document, collection);
-		})
-	);
-
-	console.log("Register diagnostics ... [ok]");
-
-	console.log("Register completion provider ...");
-
-	context.subscriptions.push(
-		vscode.languages.registerCompletionItemProvider(
-			"*",
-			new CompletionProvider(),
-		)
-	);
-
-	console.log("Register completion provider ... [ok]");
-
-	console.log("Activate ... [ok]");
 }
 
 export function deactivate() {

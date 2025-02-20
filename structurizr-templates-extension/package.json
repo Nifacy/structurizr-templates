@@ -14,7 +14,17 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": []
+    "commands": [],
+    "configuration": {
+      "title": "Structurizr Patterns",
+      "properties": {
+        "structurizrPatterns.patternLensPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to pattern lens jar file"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
