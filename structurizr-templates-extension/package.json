@@ -25,6 +25,7 @@
     "build-extension": "vsce package --allow-missing-repository --out ./structurizr-templates-extension.vsix"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.96.0",
