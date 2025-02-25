@@ -12,7 +12,7 @@ import com.structurizr.model.Container;
 import com.structurizr.model.Element;
 import com.structurizr.model.Relationship;
 
-public class Layered extends PatternWithSchema<Layered.Arguments> {
+public class Layered extends Pattern<Layered.Arguments> {
 
     public static class LayerArgument implements Schema {
 

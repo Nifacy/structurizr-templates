@@ -12,7 +12,7 @@ import com.structurizr.model.Model;
 import com.structurizr.model.Relationship;
 import com.structurizr.model.SoftwareSystem;
 
-public class ReverseProxy extends PatternWithSchema<ReverseProxy.Arguments> {
+public class ReverseProxy extends Pattern<ReverseProxy.Arguments> {
 
     public static class Arguments implements Schema {
 

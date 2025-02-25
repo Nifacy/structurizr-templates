@@ -11,7 +11,7 @@ import com.structurizr.model.Element;
 import com.structurizr.model.Model;
 import com.structurizr.model.Relationship;
 
-public class DatabasePerService extends PatternWithSchema<DatabasePerService.Arguments> {
+public class DatabasePerService extends Pattern<DatabasePerService.Arguments> {
 
     public static class Arguments implements Schema {
 

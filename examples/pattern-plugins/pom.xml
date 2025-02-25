@@ -39,7 +39,6 @@
                             <classifier>jar-pattern-lib</classifier>
                             <includes>
                                 <include>com/patterns/Pattern.class</include>
-                                <include>com/patterns/PatternWithSchema.class</include>
                                 <include>com/patterns/params/ExpectedNotNull.class</include>
                                 <include>com/patterns/params/FieldNotSpecified.class</include>
                                 <include>com/patterns/params/IntegerParser.class</include>

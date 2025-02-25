@@ -11,7 +11,7 @@ import com.structurizr.dsl.StructurizrDslPluginContext;
 import com.structurizr.model.Container;
 import com.structurizr.model.Element;
 
-public class ServiceRegistry extends PatternWithSchema<ServiceRegistry.Arguments> {
+public class ServiceRegistry extends Pattern<ServiceRegistry.Arguments> {
 
     public static class ArgumentQueryItem implements Schema {
 

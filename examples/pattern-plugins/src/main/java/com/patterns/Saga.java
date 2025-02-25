@@ -13,7 +13,7 @@ import com.structurizr.view.AutomaticLayout;
 import com.structurizr.view.DynamicView;
 import com.structurizr.view.ViewSet;
 
-public class Saga extends PatternWithSchema<Saga.Arguments> {
+public class Saga extends Pattern<Saga.Arguments> {
 
     public static class ArgumentActionItem implements Schema {
 
