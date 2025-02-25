@@ -15,8 +15,6 @@ public class ParserFactory {
     }
 
     Parser<?> fromType(Type type) {
-        System.out.println("parse(" + type + ")");
-
         if (type == String.class) {
             return new StringParser();
         }
