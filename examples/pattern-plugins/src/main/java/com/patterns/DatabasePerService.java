@@ -1,32 +1,41 @@
 package com.patterns;
 
+import java.util.Optional;
+
+import com.patterns.params.Schema;
 import com.structurizr.dsl.IdentifiersRegister;
 import com.structurizr.dsl.StructurizrDslParser;
-import com.structurizr.dsl.StructurizrDslPlugin;
 import com.structurizr.dsl.StructurizrDslPluginContext;
 import com.structurizr.model.Container;
 import com.structurizr.model.Element;
 import com.structurizr.model.Model;
 import com.structurizr.model.Relationship;
 
-public class DatabasePerService extends Pattern implements StructurizrDslPlugin {
+public class DatabasePerService extends PatternWithSchema<DatabasePerService.Arguments> {
+
+    public static class Arguments implements Schema {
+
+        public String service;
+        public String database;
+        public Optional<String> dataDescription;
+    }
 
     @Override
-    public void run(StructurizrDslPluginContext context) {
+    protected void apply(StructurizrDslPluginContext context, Arguments arguments) {
         System.out.println("[log] [db per service] Script started");
 
         StructurizrDslParser dslParser = context.getDslParser();
         IdentifiersRegister identifiersRegister = dslParser.getIdentifiersRegister();
 
         /* Main */
-        String serviceId = getRequiredParameter(context, "service");
+        String serviceId = arguments.service;
         Container serviceContainer = (Container) findElement(identifiersRegister, serviceId);
 
-        String databaseId = getRequiredParameter(context, "database");
+        String databaseId = arguments.database;
         Container databaseContainer = (Container) findElement(identifiersRegister, databaseId);
 
-        String dataDescriptionValue = context.getParameter("dataDescription");
-        String dataDescription = dataDescriptionValue == null ? "data" : dataDescriptionValue;
+        Optional<String> dataDescriptionValue = arguments.dataDescription;
+        String dataDescription = dataDescriptionValue.orElse("data");
 
         Model model = serviceContainer.getModel();
 
@@ -59,13 +68,5 @@ public class DatabasePerService extends Pattern implements StructurizrDslPlugin 
             throw new java.lang.RuntimeException("[error] [db per service] element with id '" + elementId + "' not found");
         }
         return foundElement;
-    }
-
-    private String getRequiredParameter(StructurizrDslPluginContext context, String name) {
-        String value = context.getParameter(name);
-        if (value == null) {
-            throw new java.lang.RuntimeException("[error] [db per service] parameter '" + name + "' is required");
-        }
-        return value;
     }
 }

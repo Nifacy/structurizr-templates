@@ -4,15 +4,26 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.patterns.params.Schema;
 import com.structurizr.dsl.IdentifiersRegister;
 import com.structurizr.dsl.StructurizrDslParser;
-import com.structurizr.dsl.StructurizrDslPlugin;
 import com.structurizr.dsl.StructurizrDslPluginContext;
 import com.structurizr.model.Container;
 import com.structurizr.model.Element;
 import com.structurizr.model.Relationship;
 
-public class Layered extends Pattern implements StructurizrDslPlugin {
+public class Layered extends PatternWithSchema<Layered.Arguments> {
+
+    public static class LayerArgument implements Schema {
+
+        public String name;
+        public String elements;
+    }
+
+    public static class Arguments implements Schema {
+
+        public List<LayerArgument> layer;
+    }
 
     private class LayerGroup {
 
@@ -26,7 +37,7 @@ public class Layered extends Pattern implements StructurizrDslPlugin {
     }
 
     @Override
-    public void run(StructurizrDslPluginContext context) {
+    protected void apply(StructurizrDslPluginContext context, Arguments arguments) {
         System.out.println("[log] [layered] Script started");
 
         StructurizrDslParser dslParser = context.getDslParser();
@@ -36,16 +47,9 @@ public class Layered extends Pattern implements StructurizrDslPlugin {
         List<LayerGroup> layerGroups = new ArrayList<>();
 
         // build list of groups
-        while (true) {
-            String layerName = context.getParameter("layer." + index + ".name");
-            if (layerName == null) {
-                break;
-            }
-
-            String layerElementIds = context.getParameter("layer." + index + ".elements");
-            if (layerElementIds == null) {
-                throw new java.lang.RuntimeException("Parameter layer." + index + ".elements expected");
-            }
+        for (LayerArgument layerArgument : arguments.layer) {
+            String layerName = layerArgument.name;
+            String layerElementIds = layerArgument.elements;
 
             List<Container> layerElements = new ArrayList<>();
             for (String containerName : layerElementIds.split(",")) {

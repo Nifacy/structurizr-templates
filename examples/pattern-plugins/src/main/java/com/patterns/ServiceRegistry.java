@@ -4,14 +4,27 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.patterns.params.Schema;
 import com.structurizr.dsl.IdentifiersRegister;
 import com.structurizr.dsl.StructurizrDslParser;
-import com.structurizr.dsl.StructurizrDslPlugin;
 import com.structurizr.dsl.StructurizrDslPluginContext;
 import com.structurizr.model.Container;
 import com.structurizr.model.Element;
 
-public class ServiceRegistry extends Pattern implements StructurizrDslPlugin {
+public class ServiceRegistry extends PatternWithSchema<ServiceRegistry.Arguments> {
+
+    public static class ArgumentQueryItem implements Schema {
+
+        public String source;
+        public String destination;
+    }
+
+    public static class Arguments implements Schema {
+
+        public String registry;
+        public String connectedServices;
+        public List<ArgumentQueryItem> query;
+    }
 
     private class RegistryQuery {
 
@@ -25,29 +38,19 @@ public class ServiceRegistry extends Pattern implements StructurizrDslPlugin {
     }
 
     @Override
-    public void run(StructurizrDslPluginContext context) {
+    protected void apply(StructurizrDslPluginContext context, Arguments arguments) {
         System.out.println("[log] [service registry] Script started");
 
         StructurizrDslParser dslParser = context.getDslParser();
         IdentifiersRegister identifiersRegister = dslParser.getIdentifiersRegister();
 
         /* Parse Parameters */
-        String registryId = getRequiredParameter(context, "registry");
-        String connectedServicesIds = getRequiredParameter(context, "connectedServices");
+        String registryId = arguments.registry;
+        String connectedServicesIds = arguments.connectedServices;
 
         List<RegistryQuery> queries = new ArrayList<>();
-        int index = 0;
-
-        while (true) {
-            String sourceId = context.getParameter("query." + index + ".source");
-            if (sourceId == null) {
-                break;
-            }
-
-            String destinationId = getRequiredParameter(context, "query." + index + ".destination");
-            queries.add(new RegistryQuery(sourceId, destinationId));
-
-            index++;
+        for (ArgumentQueryItem queryArg : arguments.query) {
+            queries.add(new RegistryQuery(queryArg.source, queryArg.destination));
         }
 
         /* Find Elements */
@@ -94,13 +97,4 @@ public class ServiceRegistry extends Pattern implements StructurizrDslPlugin {
         }
         return foundElement;
     }
-
-    private String getRequiredParameter(StructurizrDslPluginContext context, String name) {
-        String value = context.getParameter(name);
-        if (value == null) {
-            throw new java.lang.RuntimeException("[error] [db per service] parameter '" + name + "' is required");
-        }
-        return value;
-    }
-
 }
