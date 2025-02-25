@@ -2,9 +2,9 @@ package com.patterns;
 
 import java.lang.reflect.Method;
 
+import com.patterns.params.Schema;
 import com.structurizr.dsl.IdentifiersRegister;
 import com.structurizr.dsl.StructurizrDslParser;
-import com.structurizr.dsl.StructurizrDslPlugin;
 import com.structurizr.dsl.StructurizrDslPluginContext;
 import com.structurizr.model.Container;
 import com.structurizr.model.Element;
@@ -12,16 +12,21 @@ import com.structurizr.model.Model;
 import com.structurizr.model.Relationship;
 import com.structurizr.model.SoftwareSystem;
 
-public class ReverseProxy extends Pattern implements StructurizrDslPlugin {
+public class ReverseProxy extends PatternWithSchema<ReverseProxy.Arguments> {
+
+    public static class Arguments implements Schema {
+
+        public String target;
+    }
 
     @Override
-    public void run(StructurizrDslPluginContext context) {
+    public void apply(StructurizrDslPluginContext context, Arguments arguments) {
         try {
             StructurizrDslParser dslParser = context.getDslParser();
             IdentifiersRegister identifiersRegister = dslParser.getIdentifiersRegister();
 
             // parameters
-            String target = context.getParameter("target");
+            String target = arguments.target;
             Container targetContainer = (Container) identifiersRegister.getElement(target);
 
             System.out.println("[log] Apply Proxy Server pattern to " + targetContainer.toString() + " ...");
