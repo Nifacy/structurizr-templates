@@ -37,6 +37,10 @@ public class SchemaParser<T extends Schema> implements Parser<T> {
                     field.set(instance, value);
                     isPartlySpecified = true;
                 } catch (ExpectedNotNull e) {
+                    if (prefix.isEmpty()) {
+                        throw e;
+                    }
+
                     if (isPartlySpecified) {
                         throw new FieldNotSpecified(prefix, field.getName());
                     }
