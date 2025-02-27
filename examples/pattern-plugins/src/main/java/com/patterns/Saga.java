@@ -2,6 +2,7 @@ package com.patterns;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.patterns.params.Schema;
 import com.structurizr.dsl.IdentifiersRegister;
@@ -37,6 +38,30 @@ public class Saga extends Pattern<Saga.Arguments> {
             this.container = container;
             this.description = description;
         }
+    }
+
+    public static Optional<String> getDocumentation() {
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("### Saga\n");
+        builder.append("Суть паттерна заключается в организации транзакций, при этом придерживаясь концепции микросервисов.\n");
+        builder.append("\n");
+        builder.append("#### Проблема\n");
+        builder.append("У нас есть много отдельных сервисов, каждый из которых ответственен за часть функциональности.\n");
+        builder.append("Однако, в некоторых случаях требуется реализовать цепочку вызовов, затрагивающую несколько сервисов,\n");
+        builder.append("при этом обеспечив согласованность - если на каком-то этапе произошла ошибка,\n");
+        builder.append("то система должна вернуться к состоянию, в котором она была до выполнения транзакции.\n");
+        builder.append("\n");
+        builder.append("#### Решение\n");
+        builder.append("Паттерн описывает вариацию Orchestration-based saga.\n");
+        builder.append("При таком подходе мы добавляем еще один сервис, отвечающий за транзакцию.\n");
+        builder.append("Его называют saga оркестратором.\n");
+        builder.append("\n");
+        builder.append("Его работа заключается в отправке команд другим сервисам в определенном порядке и\n");
+        builder.append("отправке обратных команд при возникновении ошибки. Вариант более приоритетный,\n");
+        builder.append("так как нет мешанины, нет размазывания логики, все находится в отдельном сервисе.\n");
+
+        return Optional.of(builder.toString());
     }
 
     @Override

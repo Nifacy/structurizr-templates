@@ -3,6 +3,7 @@ package com.patterns;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 
 import com.patterns.params.Schema;
 import com.structurizr.dsl.IdentifiersRegister;
@@ -34,6 +35,20 @@ public class Layered extends Pattern<Layered.Arguments> {
             this.name = name;
             this.elements = elements;
         }
+    }
+
+    public static Optional<String> getDocumentation() {
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("### Многозвенная архитектура\n");
+        builder.append("Один из самых простых паттернов. Идея состоит в том, чтобы разбить всю систему на несколько слоев.\n");
+        builder.append("Каждый из слоев имеет следующие особенности и ограничения:\n");
+        builder.append("- Каждый слой может обращаться только к слою на уровень ниже, и не более\n");
+        builder.append("- Все слои образуют порядок. То есть, мы можем сказать, какой слой за каким стоит\n");
+        builder.append("\n");
+        builder.append("В модели C4 слои можно представить в виде групп, так как их физического разграничения нет (если убрать разделение по слоям, то это будет просто набор контейнеров, которые общаются по определенному протоколу).\n");
+
+        return Optional.of(builder.toString());
     }
 
     @Override

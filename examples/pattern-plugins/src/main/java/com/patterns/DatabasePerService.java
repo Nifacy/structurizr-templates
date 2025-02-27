@@ -20,6 +20,19 @@ public class DatabasePerService extends Pattern<DatabasePerService.Arguments> {
         public Optional<String> dataDescription;
     }
 
+    public static Optional<String> getDocumentation() {
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("### Database per service\n");
+        builder.append("Паттерн используется в контексте микросервисной архитектуры.\n");
+        builder.append("Согласно этому паттерну, каждый сервис имеет свою базу данных.\n");
+        builder.append("Такой подход позволяет горизонтально масштабировать сервисы независимо друг от друга,\n");
+        builder.append("делать сами базы данных независимыми (например, каждый сервис может использую такую базу данных,\n");
+        builder.append("которая будет более подходящей для его задачи).\n");
+
+        return Optional.of(builder.toString());
+    }
+
     @Override
     protected void apply(StructurizrDslPluginContext context, Arguments arguments) {
         System.out.println("[log] [db per service] Script started");

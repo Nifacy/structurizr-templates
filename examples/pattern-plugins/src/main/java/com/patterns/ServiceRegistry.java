@@ -3,6 +3,7 @@ package com.patterns;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 
 import com.patterns.params.Schema;
 import com.structurizr.dsl.IdentifiersRegister;
@@ -35,6 +36,29 @@ public class ServiceRegistry extends Pattern<ServiceRegistry.Arguments> {
             this.sourceId = sourceId;
             this.destinationId = destinationId;
         }
+    }
+
+    public static Optional<String> getDocumentation() {
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("### Saga\n");
+        builder.append("\n");
+        builder.append("#### Проблема\n");
+        builder.append("Микросервисной архитектуре свойствена работа с огромным количеством сервисов и их реплик.\n");
+        builder.append("При использовании таких протоколов, как HTTP, необходимо знать \"местоположение\" сервиса\n");
+        builder.append("(в данном случае это IP и порт), которому необходимо отправлять запрос.\n");
+        builder.append("\n");
+        builder.append("Однако, в микросервисной архитектуре сервисы постоянно создаются, удаляются, могут упасть и т. д. То есть, набор сервисов динамичный и изменяется с течением времени.\n");
+        builder.append("\n");
+        builder.append("#### Решение\n");
+        builder.append("Данный паттерн предлагает сделать отдельную сущность - Service Registry,\n");
+        builder.append("которая будет играть роль хранилища информации об активных сервисах.\n");
+        builder.append("При старте работы сервисы отправляют запрос в Service Registry на добавление.\n");
+        builder.append("После чего, Service Registry может отправлять запросы на проверку работоспособности сервисов,\n");
+        builder.append("например, используя паттерн Healtcheck API.\n");
+        builder.append("Либо же сервисы сами могут отсылать запрос, чтобы уведомить Registry о том, что они работоспособны.\n");
+
+        return Optional.of(builder.toString());
     }
 
     @Override

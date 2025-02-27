@@ -1,6 +1,7 @@
 package com.patterns;
 
 import java.lang.reflect.Method;
+import java.util.Optional;
 
 import com.patterns.params.Schema;
 import com.structurizr.dsl.IdentifiersRegister;
@@ -17,6 +18,21 @@ public class ReverseProxy extends Pattern<ReverseProxy.Arguments> {
     public static class Arguments implements Schema {
 
         public String target;
+    }
+
+    public static Optional<String> getDocumentation() {
+        StringBuilder builder = new StringBuilder();
+
+        builder.append("### Reverse Proxy pattern\n");
+        builder.append("Основное назначение данного паттерна состоит в том, чтобы скрыть систему от клиента за одним IP адресом.\n");
+        builder.append("Reverse Proxy получает запросы от клиента и определяет, кому переадресовать этот запрос.\n");
+        builder.append("\n");
+        builder.append("Reverse Proxy может выполнять следующие задачи:\n");
+        builder.append("- **кеширование.** Proxy сервис может кешировать результаты и не делать обращений к сервисам, если этого не требуется.\n");
+        builder.append("- **балансировка.** Proxy может выполнять задачу, схожую с Load Balancer - балансировать нагрузку на сервисы.\n");
+        builder.append("- **шифрование.** Proxy может быть использован в целях безопасности для шифрования трафика, приходящего на сервисы.\n");
+
+        return Optional.of(builder.toString());
     }
 
     @Override

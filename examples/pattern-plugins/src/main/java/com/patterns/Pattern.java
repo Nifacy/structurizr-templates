@@ -2,6 +2,7 @@ package com.patterns;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Optional;
 
 import com.patterns.params.ParseError;
 import com.patterns.params.Parser;
@@ -27,6 +28,10 @@ public abstract class Pattern<T extends Schema> implements StructurizrDslPlugin 
         } catch (ParseError e) {
             throw new RuntimeException("[" + childClass.getName() + "] Error during arguments parse:\n" + e);
         }
+    }
+
+    public static Optional<String> getDocumentation() {
+        return Optional.empty();
     }
 
     protected abstract void apply(StructurizrDslPluginContext context, T arguments);
