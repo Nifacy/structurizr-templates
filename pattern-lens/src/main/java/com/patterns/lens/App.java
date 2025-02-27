@@ -1,8 +1,7 @@
 package com.patterns.lens;
 
 import java.io.File;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -11,10 +10,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.json.JSONArray;
+import org.json.JSONObject;
 
-import com.patterns.lens.fields.FieldParser;
-import com.patterns.lens.fields.SchemaField;
+import com.patterns.lens.info.PatternInfo;
+import com.patterns.lens.info.PatternInfoGetter;
+
 
 public class App {
     public static void main(String[] args) {
@@ -26,22 +26,22 @@ public class App {
         }
     }
 
-    private static void handleQuery(String[] args) throws MalformedURLException {
+    private static void handleQuery(String[] args) throws MalformedURLException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         switch (args[0]) {
             case "is-pattern":
                 boolean result = checkIsPattern(args[1], args[2]);
                 System.out.println(result);
                 break;
-            case "get-params":
-                JSONArray params = getPatternParams(args[1], args[2]);
-                System.out.println(params.toString(4));
+            case "info":
+                JSONObject info = getPatternInfo(args[1], args[2]);
+                System.out.println(info.toString(4));
                 break;
             default:
                 throw new java.lang.RuntimeException("Unknown command: " + args[0]);
         }
     }
 
-    private static JSONArray getPatternParams(String workspacePath, String pluginName) throws MalformedURLException {
+    private static JSONObject getPatternInfo(String workspacePath, String pluginName) throws MalformedURLException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         if (!checkIsPattern(workspacePath, pluginName)) {
             throw new java.lang.RuntimeException(pluginName + " is not a pattern");
         }
@@ -56,11 +56,10 @@ public class App {
         Class<?> schemaTagClass = maybeSchemaTagClass.get();
         Class<?> targetPluginClass = tryLoadClass(loader, pluginName).get();
 
-        ParameterizedType superclass = (ParameterizedType) targetPluginClass.getGenericSuperclass();
-        Type schemaType = superclass.getActualTypeArguments()[0];
+        PatternInfoGetter infoGetter = new PatternInfoGetter(schemaTagClass);
+        PatternInfo info = infoGetter.getInfo(targetPluginClass);
 
-        List<SchemaField> fields = new FieldParser(schemaTagClass).fromSchema(schemaType);
-        return new FieldSerializer().serialize(fields);
+        return new PatternInfoSerializer().serialize(info);
     }
 
     private static boolean checkIsPattern(String workspacePath, String pluginName) throws MalformedURLException {

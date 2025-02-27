@@ -1,4 +1,4 @@
-package com.patterns.lens.fields;
+package com.patterns.lens.info.fields;
 
 import java.util.List;
 
