@@ -1,6 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import * as yaml from "js-yaml";
+import { PatternLens } from "./patternLens";
 
 
 export interface Field {
@@ -23,43 +24,6 @@ export interface PatternInfo {
 };
 
 
-function parseSingleField(value: any): Field {
-    if (typeof value === "string") {
-        return {
-            name: value,
-            optional: false,
-        };
-    }
-
-    if (typeof value === "object" && value !== null) {
-        if (value["name"] !== undefined && value["optional"] !== undefined) {
-            return {
-                name: value["name"],
-                optional: value["optional"],
-            };
-        }
-    }
-
-    throw Error(`Unable to parse argument: ${value}`);
-}
-
-
-function parseParameter(value: any): Parameter {
-    // check if it is a fields' group
-    if (typeof value === "object" && value !== null) {
-        // TODO: add fields' set validation
-        if (value["name"] !== undefined && value["fields"] !== undefined) {
-            return {
-                name: value["name"],
-                fields: value["fields"].map(parseSingleField),
-            };
-        }
-    }
-
-    return parseSingleField(value);
-}
-
-
 export function IsPattern(workspaceFilePath: string, pluginName: string) {
     const workspaceDirectory = path.dirname(workspaceFilePath);
     const infoDirectory = path.join(workspaceDirectory, "patterns-info");
@@ -73,7 +37,11 @@ export function IsPattern(workspaceFilePath: string, pluginName: string) {
 }
 
 
-export function GetPatternInfo(workspaceFilePath: string, pluginName: string): PatternInfo {
+export async function GetPatternInfo(
+    patternLens: PatternLens,
+    workspaceFilePath: string,
+    pluginName: string
+): Promise<PatternInfo> {
     const workspaceDirectory = path.dirname(workspaceFilePath);
     const infoDirectory = path.join(workspaceDirectory, "patterns-info");
     const infoFilePath = path.join(infoDirectory, `${pluginName}.yaml`);
@@ -81,9 +49,11 @@ export function GetPatternInfo(workspaceFilePath: string, pluginName: string): P
     const infoJsonContent = fs.readFileSync(infoFilePath, "utf8");
     const infoJsonData = yaml.load(infoJsonContent) as any;
 
+    const patternParams = await patternLens.GetParams(workspaceFilePath, pluginName) as Parameter[];
+
     return {
         pluginName: pluginName,
         docs: infoJsonData["doc"],
-        params: infoJsonData["params"]?.map(parseParameter),
+        params: patternParams,
     };
 }

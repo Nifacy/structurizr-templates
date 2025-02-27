@@ -46,7 +46,7 @@ async function getPatternApply(
 	return {
 		range: applyRange,
 		pluginApplyInfo: pluginApplyInfo,
-		patternInfo: pattern.GetPatternInfo(workspaceFilePath, pluginApplyInfo.name),
+		patternInfo: await pattern.GetPatternInfo(patternLens, workspaceFilePath, pluginApplyInfo.name),
 	};
 }
 
