@@ -15,11 +15,3 @@ doc: |-
   После чего, Service Registry может отправлять запросы на проверку работоспособности сервисов,
   например, используя паттерн Healtcheck API.
   Либо же сервисы сами могут отсылать запрос, чтобы уведомить Registry о том, что они работоспособны.
-
-params:
-- registry
-- connectedServices
-- name: query
-  fields:
-  - source
-  - destination
