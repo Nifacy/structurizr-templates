@@ -14,7 +14,17 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": []
+    "commands": [],
+    "configuration": {
+      "title": "Structurizr Patterns",
+      "properties": {
+        "structurizrPatterns.patternLensPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to pattern lens jar file"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -25,6 +35,7 @@
     "build-extension": "vsce package --allow-missing-repository --out ./structurizr-templates-extension.vsix"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.96.0",
