@@ -2,18 +2,25 @@ import { spawn } from "child_process";
 
 
 export interface SingleField {
-    name: String;
+    name: string;
     optional: true;
 }
 
 
 export interface ArrayField {
-    name: String;
+    name: string;
     fields: Field[];
 }
 
 
-type Field = SingleField | ArrayField;
+export type Field = SingleField | ArrayField;
+
+
+export interface PatternInfo {
+    pluginName: string;
+    docs: string;
+    params: Field[];
+}
 
 
 export class PatternLensError extends Error {
@@ -65,14 +72,14 @@ export class PatternLens {
         return result;
     }
 
-    public async GetParams(workspacePath: string, pluginName: string): Promise<Field[]> {
+    public async GetInfo(workspacePath: string, pluginName: string): Promise<PatternInfo> {
         const methodLogger = Logger.Extend("[GetParams]", this.logger);
         methodLogger.log(`workspacePath: '${workspacePath}', pluginName: '${pluginName}'`);
 
-        const output = await this.runJar(methodLogger, "get-params", workspacePath, pluginName);
+        const output = await this.runJar(methodLogger, "info", workspacePath, pluginName);
         methodLogger.log(`output: '${output}'`);
 
-        return JSON.parse(output) as Field[];
+        return JSON.parse(output) as PatternInfo;
     }
 
     private async runJar(logger: Logger, command: string, ...args: string[]): Promise<string> {
@@ -81,10 +88,14 @@ export class PatternLens {
         return new Promise((resolve, reject) => {
             localLogger.log(`run: '${command} ${args.join(" ")}'`)
 
-            const javaProcess = spawn("java", ["-jar", this.jarPath, command, ...args]);
+            const javaProcess = spawn("java", ["-Dfile.encoding=UTF-8", "-jar", this.jarPath, command, ...args]);
+            javaProcess.stdout.setEncoding("utf-8");
+            javaProcess.stderr.setEncoding("utf-8");
+
             let stdout = "";
 
             javaProcess.stdout.on("data", data => {
+                localLogger.log(`Data: '${typeof(data)}'`);
                 stdout += data.toString();
             });
 

@@ -2,14 +2,13 @@ import * as vscode from "vscode";
 import * as fs from "fs"
 
 import * as pluginParser from "./parser";
-import * as pattern from "./pattern"
-import { PatternLens } from "./patternLens";
+import * as lens from "./patternLens";
 
 
 interface PatternApplyInfo {
 	range: vscode.Range;
 	pluginApplyInfo: pluginParser.PluginApplyInfo;
-	patternInfo: pattern.PatternInfo;
+	patternInfo: lens.PatternInfo;
 };
 
 
@@ -30,7 +29,7 @@ async function openFileInNewTab(filePath: string): Promise<void> {
 
 
 async function getPatternApply(
-	patternLens: PatternLens,
+	patternLens: lens.PatternLens,
 	document: vscode.TextDocument,
 	applyRange: vscode.Range
 ): Promise<PatternApplyInfo | undefined> {
@@ -46,7 +45,7 @@ async function getPatternApply(
 	return {
 		range: applyRange,
 		pluginApplyInfo: pluginApplyInfo,
-		patternInfo: await pattern.GetPatternInfo(patternLens, workspaceFilePath, pluginApplyInfo.name),
+		patternInfo: await patternLens.GetInfo(workspaceFilePath, pluginApplyInfo.name),
 	};
 }
 
@@ -71,14 +70,14 @@ function getDefinedIndexes(name: string, argNames: pluginParser.ArgumentName[]):
 
 
 function unpackParams(
-	params: pattern.Parameter[],
+	params: lens.Field[],
 	args: pluginParser.ArgumentName[]
 ): UnpackedParameter[] {
 	const result: UnpackedParameter[] = [];
 
 	for (const param of params) {
-		if ((param as pattern.Field).optional !== undefined) {
-			const singledField = param as pattern.Field;
+		if ((param as lens.SingleField).optional !== undefined) {
+			const singledField = param as lens.SingleField;
 
 			result.push({
 				argumentName: singledField.name,
@@ -87,7 +86,7 @@ function unpackParams(
 			continue;
 		}
 
-		const fieldGroup = param as pattern.FieldGroup;
+		const fieldGroup = param as lens.ArrayField;
 		for (const index of getDefinedIndexes(fieldGroup.name, args)) {
 			for (const field of fieldGroup.fields) {
 				result.push({
@@ -96,7 +95,7 @@ function unpackParams(
 						index: index,
 						field: field.name,
 					},
-					optional: field.optional,
+					optional: (field as lens.SingleField).optional,
 				});
 			}
 		}
@@ -116,12 +115,12 @@ function dumpPluginArgumentName(name: pluginParser.ArgumentName): string {
 
 class CodelensProvider implements vscode.CodeLensProvider {
 
-	private patternLens: PatternLens;
+	private patternLens: lens.PatternLens;
 	private codeLenses: vscode.CodeLens[] = [];
 	private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
 	public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
 
-	constructor(patternLens: PatternLens) {
+	constructor(patternLens: lens.PatternLens) {
 		this.patternLens = patternLens;
 
 		vscode.workspace.onDidChangeConfiguration((_) => {
@@ -165,9 +164,9 @@ class CodelensProvider implements vscode.CodeLensProvider {
 
 
 class HoverProvider implements vscode.HoverProvider {
-	private patternLens: PatternLens;
+	private patternLens: lens.PatternLens;
 
-	constructor(patternLens: PatternLens) {
+	constructor(patternLens: lens.PatternLens) {
 		this.patternLens = patternLens;
 	}
 
@@ -207,9 +206,9 @@ class HoverProvider implements vscode.HoverProvider {
 
 
 class CompletionProvider implements vscode.CompletionItemProvider {
-	private patternLens: PatternLens;
+	private patternLens: lens.PatternLens;
 
-	constructor(patternLens: PatternLens) {
+	constructor(patternLens: lens.PatternLens) {
 		this.patternLens = patternLens;
 	}
 
@@ -352,7 +351,7 @@ function checkArgumentsSet(
 
 
 async function updateDiagnostics(
-	patternLens: PatternLens,
+	patternLens: lens.PatternLens,
 	document: vscode.TextDocument,
 	collection: vscode.DiagnosticCollection,
 ): Promise<void> {
@@ -395,7 +394,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			throw Error(`Pattern Lens jar file '${patternLensPath}' doesn't exist`);
 		}
 
-		const patternLensClient = new PatternLens(patternLensPath);
+		const patternLensClient = new lens.PatternLens(patternLensPath);
 
 		console.log("Initialize Pattern Lens client... [ok]");
 
