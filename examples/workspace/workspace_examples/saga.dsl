@@ -11,7 +11,7 @@ workspace {
             user -> api "Creates Order"
             api -> orchestrator "Sends request to create order transaction"
 
-            !script ../saga.kts {
+            !plugin com.patterns.Saga {
                 orchestrator    orchestrator
 
                 item.0.service  orderService

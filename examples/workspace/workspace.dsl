@@ -16,7 +16,7 @@ workspace {
             orderService -> paymentService "Sends payment request"
             orderService -> inventoryService "Checks items availability"
 
-            !script ../serviceRegistry.kts {
+            !plugin com.patterns.ServiceRegistry {
                 registry             serviceRegistry
                 connectedServices    paymentService,inventoryService
 
