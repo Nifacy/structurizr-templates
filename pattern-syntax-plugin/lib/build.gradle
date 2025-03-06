@@ -16,9 +16,6 @@ repositories {
 }
 
 dependencies {
-    // Use JUnit test framework.
-    testImplementation libs.junit
-
     // This dependency is exported to consumers, that is to say found on their compile classpath.
     api libs.commons.math3
 
